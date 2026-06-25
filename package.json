@@ -1,0 +1,33 @@
+{
+  "name": "sapcap-chat-with-data",
+  "version": "1.0.0",
+  "description": "SAP CAP (Node.js) + SAP Generative AI Hub ile doğal dilde veri sorgulama uygulaması",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@sap/cds": "^8",
+    "@sap-ai-sdk/orchestration": "^2",
+    "express": "^4"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "^1",
+    "@sap/cds-dk": "^8"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "watch": "cds watch"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "url": "db.sqlite"
+        }
+      }
+    }
+  }
+}
