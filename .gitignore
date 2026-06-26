@@ -6,3 +6,7 @@ gen/
 dist/
 *.log
 .DS_Store
+mta_archives/
+resources/
+.cdsrc-private.json
+default-*.json

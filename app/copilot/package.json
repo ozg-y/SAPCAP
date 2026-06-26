@@ -1,0 +1,16 @@
+{
+  "name": "borusan-copilot",
+  "version": "1.0.0",
+  "description": "Launchpad Copilot — FLP Shell Plugin (UI5)",
+  "private": true,
+  "scripts": {
+    "build": "ui5 build --clean-dest --dest dist",
+    "start": "ui5 serve"
+  },
+  "devDependencies": {
+    "@ui5/cli": "^3"
+  },
+  "ui5": {
+    "dependencies": []
+  }
+}

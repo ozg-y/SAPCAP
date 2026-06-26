@@ -1,0 +1,138 @@
+_schema-version: "3.2"
+ID: sapcap-copilot
+version: 1.0.0
+description: "CAP servisi + Launchpad Copilot (FLP Shell Plugin)"
+
+parameters:
+  enable-parallel-deployments: true
+
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm ci
+        - npx cds build --production
+
+modules:
+  # ---------------------------------------------------------------------------
+  # 1) CAP servisi (ChatService + CopilotService). AI Core'a buradan bağlanılır.
+  # ---------------------------------------------------------------------------
+  - name: sapcap-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      buildpack: nodejs_buildpack
+    build-parameters:
+      builder: npm
+    provides:
+      - name: srv-api
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: sapcap-db
+      - name: sapcap-aicore       # <-- Gen AI Hub binding (AI Core)
+      - name: sapcap-auth
+
+  # ---------------------------------------------------------------------------
+  # 2) HANA HDI deploy (chat-service entity'leri için).
+  # ---------------------------------------------------------------------------
+  - name: sapcap-db-deployer
+    type: hdb
+    path: gen/db
+    parameters:
+      buildpack: nodejs_buildpack
+    requires:
+      - name: sapcap-db
+
+  # ---------------------------------------------------------------------------
+  # 3) FLP Shell Plugin (UI5) → HTML5 Application Repository.
+  # ---------------------------------------------------------------------------
+  - name: sapcap-copilot-ui
+    type: html5
+    path: app/copilot
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm ci
+        - npm run build
+      supported-platforms: []
+
+  # 3a) HTML5 app'leri repo'ya yükleyen deployer.
+  - name: sapcap-html5-deployer
+    type: com.sap.application.content
+    path: .
+    requires:
+      - name: sapcap-html5-repo-host
+        parameters:
+          content-target: true
+    build-parameters:
+      build-result: resources
+      requires:
+        - artifacts:
+            - sapcap-copilot-ui.zip
+          name: sapcap-copilot-ui
+          target-path: resources/
+
+  # ---------------------------------------------------------------------------
+  # 4) Destination'ları oluşturur: plugin → CAP servisi (copilot-srv-api).
+  # ---------------------------------------------------------------------------
+  - name: sapcap-destinations
+    type: com.sap.application.content
+    requires:
+      - name: srv-api
+      - name: sapcap-auth
+        parameters:
+          service-key:
+            name: sapcap-auth-key
+      - name: sapcap-html5-repo-host
+        parameters:
+          service-key:
+            name: sapcap-html5-repo-host-key
+      - name: sapcap-destination
+        parameters:
+          content-target: true
+    parameters:
+      content:
+        instance:
+          destinations:
+            - Name: copilot-srv-api
+              URL: ~{srv-api/srv-url}
+              Authentication: NoAuthentication
+              Type: HTTP
+              ProxyType: Internet
+              HTML5.ForwardAuthToken: true
+          existing_destinations_policy: update
+
+resources:
+  - name: sapcap-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+
+  # AI Core (Gen AI Hub) — orchestration SDK bu binding'den kimlik alır.
+  - name: sapcap-aicore
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: aicore
+      service-plan: extended
+
+  - name: sapcap-auth
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+
+  - name: sapcap-html5-repo-host
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-host
+
+  - name: sapcap-destination
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite

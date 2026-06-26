@@ -10,6 +10,7 @@
   "dependencies": {
     "@sap/cds": "^8",
     "@sap-ai-sdk/orchestration": "^2",
+    "@cap-js/hana": "^1",
     "express": "^4"
   },
   "devDependencies": {
@@ -18,14 +19,19 @@
   },
   "scripts": {
     "start": "cds-serve",
-    "watch": "cds watch"
+    "watch": "cds watch",
+    "build": "cds build --production"
   },
   "cds": {
     "requires": {
       "db": {
-        "kind": "sqlite",
-        "credentials": {
-          "url": "db.sqlite"
+        "[development]": {
+          "kind": "sqlite",
+          "credentials": { "url": "db.sqlite" }
+        },
+        "[production]": {
+          "kind": "hana",
+          "deploy-format": "hdbtable"
         }
       }
     }

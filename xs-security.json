@@ -1,0 +1,7 @@
+{
+  "xsappname": "sapcap-copilot",
+  "tenant-mode": "dedicated",
+  "description": "Security profile for SAPCAP Launchpad Copilot",
+  "scopes": [],
+  "role-templates": []
+}
