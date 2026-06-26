@@ -77,3 +77,78 @@ Detaylar: [SAP Cloud SDK for AI](https://sap.github.io/ai-sdk/) ·
 ## API
 
 `POST /chat/ask` · gövde: `{ "question": "..." }` · yanıt: `{ answer, query, data }`
+
+---
+
+# Launchpad Copilot (FLP Shell Plugin)
+
+Tek bir uygulamaya gömülü bot değil; **Fiori Launchpad'in tamamında** çalışan,
+login olan kullanıcının **erişebildiği tüm uygulamaları gören** ve doğal dil
+isteğini doğru uygulamaya yönlendiren **erişim-farkında** bir copilot.
+
+> Kritik şart: kullanıcının kataloğunda/sayfasında olmayan bir uygulamaya asla
+> yönlendirmez — "erişimin yok" (`no_access`) der.
+
+## Mimari
+
+```
+UI5 Shell Plugin (app/copilot)                         CAP (srv)
+─────────────────────────────                          ──────────
+sap.ushell "SearchableContent".getApps()  ── katalog ──►  /copilot/route
+   (kullanıcının eriştiği app'ler)            + mesaj      │  katalog + mesaj → Gen AI Hub
+                                                           │  → intent JSON (katalogla doğrulanır)
+sap.ushell "Navigation".navigate()  ◄── intent ───────────┘
+   (doğru app'e yönlendirme)
+```
+
+- **Spaces & Pages uyumlu:** `SearchableContent.getApps()` içerik modelinden
+  bağımsızdır — klasik group olsun, space/page olsun fark etmez. Eskiyen,
+  group-bazlı `LaunchPage` servisinden kaçınılır.
+- **Güvenlik:** AI çağrısı CAP'in arkasındadır; API anahtarı client'a sızmaz.
+- **Erişim-farkındalık iki katmanlı:** (1) sistem promptu AI'a katalog sınırını
+  dayatır, (2) `srv/lib/copilot.js` dönen `appIds`'i katalogla yeniden doğrular —
+  uydurulan id'ler atılır, `navigate` → `no_access`'e düşer.
+
+## Intent kontratı (JSON)
+
+```json
+{
+  "intent": "navigate | clarify | answer | no_access",
+  "message": "kısa Türkçe yanıt",
+  "appIds": ["katalogdaki id"],
+  "followup": "yalnızca clarify ise netleştirme sorusu"
+}
+```
+
+## Proje yapısı (copilot)
+
+| Yol | Açıklama |
+|-----|----------|
+| `srv/copilot-service.cds` | `/copilot` servisi + `route(message, catalog)` action |
+| `srv/copilot-service.js` | Action handler |
+| `srv/lib/copilot.js` | Routing beyni: prompt + katalog doğrulama + offline fallback |
+| `app/copilot/Component.js` | FLP Shell Plugin: katalog çekme, panel, navigasyon |
+| `app/copilot/manifest.json` | `sap.flp.type: plugin` descriptor |
+
+## FLP'ye plugin olarak kaydetme
+
+Shell Plugin, launchpad konfigürasyonuna eklenir (ayrı bir uygulama değildir).
+SAP Build Work Zone / standalone FLP için plugin kaydı (örnek):
+
+```json
+{
+  "borusan.copilot": {
+    "component": "borusan.copilot",
+    "url": "/copilot/webapp",
+    "config": { "sap-plugin": "true" }
+  }
+}
+```
+
+> Gerçek ortamda `serviceUrl` (manifest `sap.copilot.serviceUrl`) CAP servisine
+> bir BTP destination üzerinden işaret etmelidir.
+
+## API (copilot)
+
+`POST /copilot/route` · gövde: `{ "message": "...", "catalog": [{ "id":"SO-action", "title":"...", "keywords":[...] }] }`
+· yanıt: `{ intent, message, appIds, followup }`

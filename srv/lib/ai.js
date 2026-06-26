@@ -115,4 +115,4 @@ async function summarize(question, rows) {
   return `${rows.length} kayıt bulundu. (Doğal dil özeti için AI Core bağlantısı gerekir.)`;
 }
 
-module.exports = { planQuery, summarize, MODEL };
+module.exports = { planQuery, summarize, chat, MODEL };
